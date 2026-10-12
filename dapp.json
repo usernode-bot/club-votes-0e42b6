@@ -6,5 +6,36 @@
   "secrets": [],
   "governance": {
     "preset": "you_or_the_group"
-  }
+  },
+  "tests": [
+    {
+      "name": "Empty club shows how to start",
+      "path": "/",
+      "expectText": "No open decisions",
+      "allowConsoleErrors": true
+    },
+    {
+      "name": "Demo decisions list",
+      "id": "decisions-demo",
+      "visual": true,
+      "impact": ["public/**", "server.js", "styles/**"],
+      "path": "/?demo=1",
+      "expectSelector": ".ballot",
+      "expectText": "Staging demo",
+      "allowConsoleErrors": true
+    },
+    {
+      "name": "Decided tab",
+      "path": "/?demo=1#/decided",
+      "expectText": "Not agreed 9 to 2",
+      "allowConsoleErrors": true
+    },
+    {
+      "name": "Decision opened",
+      "path": "/?demo=1#/d/900002",
+      "expectSelector": "[data-vote=agree]",
+      "expectText": "Riverside",
+      "allowConsoleErrors": true
+    }
+  ]
 }

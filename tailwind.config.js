@@ -52,9 +52,19 @@ module.exports = {
         line: token('line'), // borders, dividers, skeletons
         accent: token('accent'), // the one accent: the primary action
         'on-accent': token('on-accent'), // text on the accent
+        agree: token('agree'), // the vote's green
+        'on-agree': token('on-agree'),
+        disagree: token('disagree'), // the vote's red
+        'on-disagree': token('on-disagree'),
         danger: token('danger'),
         'on-danger': token('on-danger'),
         focus: token('focus'), // the keyboard focus ring
+      },
+      // Questions are set in the serif (an item on a club agenda); the sans
+      // carries everything else.
+      fontFamily: {
+        serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+        sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       },
       // The type scale: four sizes, and nothing in between.
       fontSize: {

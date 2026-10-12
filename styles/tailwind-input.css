@@ -13,59 +13,67 @@
 @tailwind utilities;
 
 /* ── Colour tokens ────────────────────────────────────────────────────────
- * This app's palette, defined once. Each value is "R G B"; tailwind.config.js
- * names them (bg-ground, bg-surface, text-fg, text-muted, border-line,
- * bg-accent with text-on-accent, ...). :root is the light look, and .dark,
- * which the theme script in public/index.html sets on <html>, the dark one.
- *
- * Re-theme the app HERE: change the values, keep the names. The defaults
- * (warm greys, one teal accent) are a quiet starting point, not a look.
- * Keep every text pair at 4.5:1 or more in both looks: fg and muted on
- * ground, surface and raised; accent and danger on ground and surface;
- * on-accent on accent; on-danger on danger.
- *
- * Adopting the native UI kit later? Point its --un-accent and
- * --un-accent-contrast at the accent and on-accent tokens.
+ * Club Votes: cool ballot-paper greys with an ink-blue accent (the colour
+ * of a pen on a ballot), plus the vote's own green and red, which people
+ * already read as yes and no. Green and red are used ONLY for votes and
+ * results, never for buttons that do something else.
+ * tailwind.config.js names them (bg-ground, bg-surface, text-fg, ...).
+ * :root is the light look, and .dark — set on <html> by the theme script
+ * in public/index.html from the viewer's Homeroom theme — the dark one.
+ * Keep every text pair at 4.5:1 or more in both looks.
  */
 @layer base {
   :root {
-    --ground: 250 250 249;    /* the page */
+    --ground: 241 244 247;    /* the page: ballot-paper grey */
     --surface: 255 255 255;   /* lists, cards, fields */
-    --raised: 245 245 244;    /* hovers, badges */
-    --fg: 28 25 23;           /* text */
-    --muted: 87 83 78;        /* secondary text */
-    --line: 231 229 228;      /* borders, dividers, skeletons */
-    --accent: 15 118 110;     /* the one accent */
+    --raised: 232 236 241;    /* hovers, badges, the tab track */
+    --fg: 20 24 31;           /* text */
+    --muted: 82 90 104;       /* secondary text */
+    --line: 214 220 228;      /* borders, dividers, skeletons */
+    --accent: 30 64 175;      /* ink blue: posting, sending, links */
     --on-accent: 255 255 255; /* text on the accent */
+    --agree: 21 128 61;       /* the vote's own green */
+    --on-agree: 255 255 255;
+    --disagree: 190 18 60;    /* the vote's own red */
+    --on-disagree: 255 255 255;
     --danger: 185 28 28;
     --on-danger: 255 255 255;
-    --focus: 13 148 136;      /* the keyboard focus ring */
+    --focus: 37 99 235;      /* the keyboard focus ring */
   }
   .dark {
-    --ground: 12 10 9;
-    --surface: 28 25 23;
-    --raised: 41 37 36;
-    --fg: 245 245 244;
-    --muted: 168 162 158;
-    --line: 68 64 60;
-    --accent: 45 212 191;
-    --on-accent: 4 47 46;
+    --ground: 15 18 23;
+    --surface: 24 28 35;
+    --raised: 34 39 48;
+    --fg: 236 239 244;
+    --muted: 160 168 182;
+    --line: 51 57 68;
+    --accent: 147 176 255;
+    --on-accent: 12 22 56;
+    --agree: 74 222 128;
+    --on-agree: 5 46 22;
+    --disagree: 251 113 133;
+    --on-disagree: 76 5 25;
     --danger: 248 113 113;
     --on-danger: 69 10 10;
-    --focus: 94 234 212;
+    --focus: 147 176 255;
   }
   /* el.hidden = true hides an element even when a class gives it a display
      (flex, the components below). */
   [hidden]:where(:not([hidden="until-found"])) {
     display: none !important;
   }
+  /* The native UI kit takes the app's accent for its own active colour. */
+  :root {
+    --un-accent: rgb(var(--accent));
+    --un-accent-contrast: rgb(var(--on-accent));
+  }
 }
 
 /* ── Components ───────────────────────────────────────────────────────────
- * A small starting kit on the tokens. Use these rather than restyling the
- * same thing by hand, add to them sparingly, and change a component here
- * rather than one copy of it. Type: text-title, text-heading, text-body and
- * text-small (tailwind.config.js), nothing in between.
+ * The design kit, on the tokens. Type: text-title, text-heading, text-body
+ * and text-small (tailwind.config.js), nothing in between. Questions are
+ * set in the serif (font-serif, an item on a club agenda); everything else
+ * is the sans. Counts use tabular figures so they line up.
  */
 @layer components {
   /* Buttons: one primary per screen, the rest secondary. At least 44 px
@@ -83,9 +91,9 @@
     @apply border border-line bg-surface text-fg hover:bg-raised;
   }
 
-  /* Text inputs, selects and textareas: <input class="field">, 44 px tall.
-     The placeholder is a faint hint (muted at 60%), so an example such as
-     "5.0" never reads as a value somebody already typed in. */
+  /* Text inputs, selects and textareas: <textarea class="field">, 44 px
+     or taller. The placeholder is a faint hint (muted at 60%), so an
+     example such as "e.g. 5.0" never reads as a value already typed in. */
   .field {
     @apply block min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-body text-fg
       placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-focus;
@@ -109,6 +117,85 @@
   /* The label above a section: sentence case, never uppercase or tracked. */
   .section-label {
     @apply mb-2 px-1 text-small font-medium text-muted;
+  }
+
+  /* ── The ballot bar, this app's signature element ────────────────────────
+     A thin bar split in two: green agree votes fill from the left, red
+     disagree votes from the right, with a small gap where they meet. A
+     short upright line marks the half-way point, so a majority reads at a
+     glance. An empty bar is a plain grey track. The two sides grow from
+     the counts, set inline as flex-grow by app.js. */
+  .ballot {
+    @apply relative flex h-2 gap-0.5;
+  }
+  .ballot-lg {
+    @apply h-3;
+  }
+  .ballot::after {
+    content: "";
+    @apply absolute left-1/2 -ml-px w-0.5 rounded-sm bg-fg -top-1 -bottom-1 shadow-[0_0_0_1px_rgb(var(--surface))];
+  }
+  .ballot > span {
+    @apply basis-0 min-w-0;
+  }
+  .ballot .ballot-agree {
+    @apply bg-agree rounded-l-full;
+  }
+  .ballot .ballot-disagree {
+    @apply bg-disagree rounded-r-full;
+  }
+  .ballot .ballot-solo {
+    @apply rounded-full;
+  }
+  .ballot .ballot-empty {
+    @apply grow bg-line rounded-full;
+  }
+  /* No votes yet: a plain track, no half-way line. */
+  .ballot.idle::after {
+    content: none;
+  }
+  .ballot.motion > span {
+    @apply motion-safe:transition-[flex-grow] motion-safe:duration-300;
+  }
+
+  /* The vote buttons. Outline in the vote's own colour; the chosen one is
+     filled. Colour is never the only signal: each button carries its tick
+     or cross and its word. */
+  .vote-agree,
+  .vote-disagree {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 bg-surface px-4 text-body font-semibold
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2
+      focus-visible:ring-offset-ground disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .vote-agree {
+    @apply border-agree text-agree;
+  }
+  .vote-agree[aria-pressed="true"] {
+    @apply bg-agree text-on-agree;
+  }
+  .vote-disagree {
+    @apply border-disagree text-disagree;
+  }
+  .vote-disagree[aria-pressed="true"] {
+    @apply bg-disagree text-on-disagree;
+  }
+
+  /* The two-part switch: Open | Decided. The selected tab is raised and
+     white; the track is the raised grey. */
+  .segmented {
+    @apply flex gap-1 rounded-lg bg-raised p-1;
+  }
+  .segmented-tab {
+    @apply min-h-11 flex-1 rounded-md px-3 text-body font-medium text-muted
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus;
+  }
+  .segmented-tab[aria-selected="true"] {
+    @apply bg-surface text-fg shadow-[0_0_0_1px_rgb(var(--line))];
+  }
+
+  /* The one-line banner at the top of the staging demo. */
+  .demo-banner {
+    @apply bg-raised px-4 py-2 text-center text-small text-muted;
   }
 
   /* The states of anything that loads data. Show exactly one at a time:
