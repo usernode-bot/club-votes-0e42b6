@@ -120,6 +120,41 @@
     return null;
   }
 
+  // The right end of a list row's meta line: how you voted, or the counted
+  // result once the decision is closed. Green when you agreed, red when you
+  // disagreed, plain grey when you have not voted.
+  function rowMarker(d) {
+    if (d.closed_at) {
+      var cls = d.agree > d.disagree ? 'text-agree' : d.disagree > d.agree ? 'text-disagree' : 'text-muted';
+      return { text: outcomeText(d), cls: 'shrink-0 font-semibold ' + cls };
+    }
+    if (d.my_vote === 'agree') return { text: 'You agreed', cls: 'shrink-0 font-medium text-agree' };
+    if (d.my_vote === 'disagree') return { text: 'You disagreed', cls: 'shrink-0 font-medium text-disagree' };
+    return { text: 'Not voted', cls: 'shrink-0 text-muted' };
+  }
+
+  // A small speech bubble with the comment count, on the counts line.
+  function commentChip(count) {
+    var span = el('span', 'inline-flex items-center gap-1');
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    var path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z');
+    svg.appendChild(path);
+    span.appendChild(svg);
+    span.appendChild(el('span', 'tabular-nums', String(count)));
+    return span;
+  }
+
   // "⋯" opens the More menu (Report). Hidden on your own posts.
   function moreButton(type, id, label) {
     var btn = el('button', 'un-touch-target shrink-0 rounded-full text-muted hover:bg-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus px-1.5 text-body leading-none');
@@ -172,10 +207,13 @@
     var fn = native('presentSheet');
     if (fn) {
       try {
-        var handle = fn({ content: content, onDismiss: onDone });
+        // The kit's `content` option is an HTML STRING; `contentEl` takes the
+        // Element. Passing the element as `content` stringifies it, and the
+        // sheet shows "[object HTMLFormElement]".
+        var handle = fn({ contentEl: content, onDismiss: onDone });
         return {
           close: function () {
-            if (handle && typeof handle.close === 'function') handle.close();
+            if (handle && typeof handle.dismiss === 'function') handle.dismiss();
             else if (content.parentNode) content.parentNode.removeChild(content);
           },
         };
@@ -314,7 +352,8 @@
 
   function postDecision() {
     var form = el('form', 'flex flex-col gap-4 pb-2');
-    var qLabel = el('label', 'block text-small font-medium text-fg', 'What should the club decide?');
+    form.appendChild(el('h2', 'text-heading font-serif text-fg', 'Post a decision'));
+    var qLabel = el('label', 'block text-small font-medium text-fg', 'Question');
     qLabel.htmlFor = 'new-question';
     var q = el('input', 'field');
     q.id = 'new-question';
@@ -323,28 +362,35 @@
     q.placeholder = 'e.g. Should we move our meetup to Thursday?';
     q.required = true;
     var counter = el('p', 'text-small text-muted tabular-nums', '0 of 140');
+    var send = el('button', 'btn-primary flex-1', 'Post decision');
+    send.type = 'submit';
+    send.disabled = true; // until the question has 3+ characters
+    var cancel = el('button', 'btn-secondary flex-1', 'Cancel');
+    cancel.type = 'button';
+    var buttons = el('div', 'flex gap-2');
+    buttons.appendChild(cancel);
+    buttons.appendChild(send);
+    var errNote = el('p', 'text-small text-danger', '');
+    errNote.hidden = true;
     q.addEventListener('input', function () {
       counter.textContent = q.value.length + ' of 140';
       counter.classList.toggle('text-danger', q.value.length > 120);
+      send.disabled = q.value.trim().length < 3;
     });
-    var dLabel = el('label', 'block text-small font-medium text-fg', 'Add details (optional)');
+    var dLabel = el('label', 'block text-small font-medium text-fg', 'Details (optional)');
     dLabel.htmlFor = 'new-details';
     var details = el('textarea', 'field');
     details.id = 'new-details';
     details.maxLength = 1000;
     details.rows = 3;
     details.placeholder = 'e.g. the date, the cost, anything people will ask about';
-    var send = el('button', 'btn-primary', 'Post decision');
-    send.type = 'submit';
-    var errNote = el('p', 'text-small text-danger', '');
-    errNote.hidden = true;
     form.appendChild(qLabel);
     form.appendChild(q);
     form.appendChild(counter);
     form.appendChild(dLabel);
     form.appendChild(details);
     form.appendChild(errNote);
-    form.appendChild(send);
+    form.appendChild(buttons);
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var question = q.value.trim();
@@ -370,6 +416,7 @@
           errNote.hidden = false;
         });
     });
+    cancel.addEventListener('click', function () { sheet.close(); });
     var sheet = presentSheet(form, function () { /* dismissed; nothing to undo */ });
     try { q.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
   }
@@ -383,12 +430,14 @@
     detail: null, // {state, decision?, comments?, removed?}
   };
 
-  function header(activeTab, counts) {
+  function header(activeTab, counts, empty) {
     var wrap = el('div', 'flex flex-col gap-3');
     var top = el('div', 'flex items-center justify-between gap-2');
     var h1 = el('h1', 'text-title font-bold', 'Club Votes');
     h1.classList.add('font-serif');
-    var post = el('button', 'btn-primary shrink-0', 'Post a decision');
+    // When the club has nothing open, the empty state carries the one
+    // filled button, so this one goes quiet.
+    var post = el('button', (empty ? 'btn-secondary' : 'btn-primary') + ' shrink-0', 'Post a decision');
     post.type = 'button';
     post.addEventListener('click', postDecision);
     top.appendChild(h1);
@@ -424,50 +473,37 @@
   }
 
   function skeletonList() {
-    var wrap = el('div', 'flex flex-col gap-3');
+    // Three rows inside one grouped container, hairline dividers between
+    // them: the shape the real list will take.
+    var ul = el('ul', 'list');
     for (var i = 0; i < 3; i++) {
-      var row = el('div', 'card flex flex-col gap-2');
-      var line = el('div', 'skeleton h-5 w-4/5');
-      var line2 = el('div', 'skeleton h-3 w-2/5');
-      var bar = el('div', 'skeleton h-2 w-full');
-      row.appendChild(line);
-      row.appendChild(line2);
-      row.appendChild(bar);
-      wrap.appendChild(row);
+      var row = el('li', 'list-row flex-col !items-stretch gap-2');
+      row.appendChild(el('div', 'skeleton h-5 w-4/5'));
+      row.appendChild(el('div', 'skeleton h-2 w-full'));
+      row.appendChild(el('div', 'skeleton h-3 w-2/5'));
+      ul.appendChild(row);
     }
-    return wrap;
+    return ul;
   }
 
   function decisionRow(d) {
-    var li = el('li', 'list-row flex-col gap-2 !items-stretch');
-    var link = el('a', 'block min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus');
+    var li = el('li', 'list-row flex-col !items-stretch gap-2');
+    var link = el('a', 'block min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus');
     link.href = '#/d/' + d.id;
-    var head = el('div', 'flex items-start gap-1');
-    var text = el('div', 'min-w-0 flex-1');
-    var q = el('p', 'font-serif text-fg leading-snug', d.question);
-    var by = el('p', 'mt-0.5 text-small text-muted', (d.mine ? 'You' : d.author_username) + ' · ' + relTime(d.created_at));
-    text.appendChild(q);
-    text.appendChild(by);
-    head.appendChild(text);
-    if (!d.mine) head.appendChild(moreButton('decision', d.id, 'More options for this decision'));
-    link.appendChild(head);
-
-    var meta = el('div', 'mt-2');
-    meta.appendChild(ballotBar(d, false));
-    var counts = el('div', 'mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-small text-muted tabular-nums');
+    // Top to bottom: the question, the ballot bar, the counts, then one
+    // meta line: who and when on the left, your vote (or the result) on
+    // the right.
+    link.appendChild(el('p', 'font-serif text-fg leading-snug', d.question));
+    link.appendChild(ballotBar(d, false));
+    var counts = el('div', 'flex flex-wrap items-center gap-x-3 gap-y-0.5 text-small text-muted tabular-nums');
     counts.appendChild(el('span', 'text-agree', d.agree + ' agree'));
     counts.appendChild(el('span', 'text-disagree', d.disagree + ' disagree'));
-    var marker = myVoteLabel(d);
-    if (marker) counts.appendChild(el('span', 'font-medium text-fg', marker));
-    if (d.comment_count > 0) counts.appendChild(el('span', '', d.comment_count + (d.comment_count === 1 ? ' comment' : ' comments')));
-    meta.appendChild(counts);
-
-    if (d.closed_at) {
-      var res = el('p', 'mt-1.5 text-small font-semibold ' + (
-        d.agree > d.disagree ? 'text-agree' : d.disagree > d.agree ? 'text-disagree' : 'text-muted'
-      ), outcomeText(d) + ' · closed ' + relTime(d.closed_at));
-      meta.appendChild(res);
-    }
+    if (d.comment_count > 0) counts.appendChild(commentChip(d.comment_count));
+    link.appendChild(counts);
+    var marker = rowMarker(d);
+    var meta = el('div', 'flex items-center justify-between gap-2 text-small');
+    meta.appendChild(el('span', 'min-w-0 truncate text-muted', (d.mine ? 'You' : d.author_username) + ' · ' + relTime(d.created_at)));
+    meta.appendChild(el('span', marker.cls, marker.text));
     link.appendChild(meta);
     li.appendChild(link);
     return li;
@@ -477,7 +513,8 @@
     var tab = location.hash === '#/decided' ? 'decided' : 'open';
     var list = state[tab];
     app.textContent = '';
-    app.appendChild(header(tab, list && list.counts));
+    var isEmpty = !!(list && list.state === 'ready' && tab === 'open' && list.decisions.length === 0);
+    app.appendChild(header(tab, list && list.counts, isEmpty));
 
     if (!list || list.state === 'loading') {
       app.appendChild(skeletonList());
@@ -497,7 +534,7 @@
       var box = el('div', 'state-empty');
       if (tab === 'open') {
         box.appendChild(el('p', 'text-heading', 'No open decisions'));
-        box.appendChild(el('p', 'text-body text-muted', 'Post the first thing for the club to decide, and voting starts right away.'));
+        box.appendChild(el('p', 'text-body text-muted', 'Post the first thing your club needs to decide.'));
         var start = el('button', 'btn-primary', 'Post a decision');
         start.type = 'button';
         start.addEventListener('click', postDecision);
