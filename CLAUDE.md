@@ -97,24 +97,29 @@ tables you've marked private), etc.
 
 ## About Club Votes
 
-A place for your club to decide things together
-
-_(add a sentence or two more of product context here so Claude Code has a
-shared understanding of what this app is for)_
+A place for your club to decide things together. One screen: open
+decisions newest first, each with an agree/disagree vote (one per
+person, changeable, re-tap to take it back), an oldest-first comment
+thread, and an author-only Close that moves it to the Decided tab with
+the counted result. Reporting (More → Report) hides content from the
+reporter at once and from everyone at three distinct reporters.
 
 ## Design
 
 This app's look. The first real version fills in the blanks; every later
 change follows it, and updates it when a request changes the look on purpose.
 
-- **Palette:** _(name the accent, any second colour and the neutrals, e.g.
-  "accent: tomato red; second: basil green; neutrals: warm greys")_
-- **Signature element:** _(the one thing on screen drawn from this app's
-  subject, which no other app would have)_
+- **Palette:** kit defaults for ground/surface/foreground; the one accent
+  carries the primary actions, plus the vote colours `agree` (green) and
+  `disagree` (red) added as tokens in `styles/tailwind-input.css`.
+- **Signature element:** the ballot bar under every question: a horizontal
+  agree-vs-disagree split that fills as votes come in, agree on the left
+  in `agree`, disagree on the right in `disagree`, with the counts shown.
+  Vote buttons say "Agree" / "Disagree", never arrows.
 - **Type scale:** `text-title`, `text-heading`, `text-body`, `text-small`
-  _(change their sizes in `tailwind.config.js` if you must, not their number)_
-- **One fixed look:** _(only for an app drawn as its own scene, such as a
-  game: which look, and why. Otherwise delete this line.)_
+  _(change their sizes in `tailwind.config.js` if you must, not their
+  number)_; decision titles use the serif display face to read like a
+  motion before a meeting.
 
 The kit is in `styles/tailwind-input.css`: colour tokens with a light and
 a dark value (named in `tailwind.config.js`), and a few components
@@ -139,6 +144,16 @@ Re-theme by changing the token values there, keeping every text pair at
 
 ## App-specific conventions
 
-_(optional — e.g. "all currency values stored as integer cents, not
-floats"; "the `posts` table is append-only"; "avoid adding new
-dependencies"; etc.)_
+- Never call a decision a "poll" or "proposal" in code or copy: this
+  app's noun is **decision**.
+- A vote is an upsert on `(decision_id, voter_id)`; taking a vote back
+  deletes the row. Tallies are counted, never stored on the decision.
+- `reports` and `demo_viewers` are marked `staging:private` (COMMENT on
+  the table): reporter identities and demo bookkeeping must never leave
+  the database.
+- Staging demo rows carry `is_demo = true`; every read filters on the
+  viewer's demo flag so demo rows and real rows never mix.
+- Reads of `/api/me` and `/api/decisions*` are allowed anonymously
+  (`PUBLIC_READ_PATHS` in `server.js`); writes always require a signed-in
+  account. Keep it that way.
+- No new npm dependencies; express, pg and jsonwebtoken are enough.
