@@ -1,6 +1,7 @@
 {
   "description": "A place for your club to decide things together",
   "icon": {
+    "image": "brand/icon.png",
     "emoji": "🗳️"
   },
   "secrets": [],
